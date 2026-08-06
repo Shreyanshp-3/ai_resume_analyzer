@@ -203,6 +203,6 @@ This project is licensed under the MIT License.
 
 ## 👨‍💻 Author
 
-**Shreyansh Patil :)**
+**Shreyansh Patil **
 
 Built as a flagship AI Engineering portfolio project.
