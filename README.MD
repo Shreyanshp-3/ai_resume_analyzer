@@ -191,7 +191,7 @@ http://127.0.0.1:8000/redoc
 - Follow clean architecture and software engineering best practices.
 - Develop a scalable backend using FastAPI.
 - Integrate modern LLMs through an abstract AI layer.
-- Continuously evolve the project through advanced AI engineering concepts.
+- Continuously evolve the project through advanced AI engineering concepts
 
 ---
 
