@@ -187,7 +187,7 @@ http://127.0.0.1:8000/redoc
 
 ## 🎯 Project Goals
 
-- Build a production-quality AI application.
+- Build a production-quality AI application
 - Follow clean architecture and software engineering best practices.
 - Develop a scalable backend using FastAPI.
 - Integrate modern LLMs through an abstract AI layer.
