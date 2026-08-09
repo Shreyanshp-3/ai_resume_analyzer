@@ -38,3 +38,8 @@ htmlcov/
 # Build
 dist/
 build/ 
+
+# Environment Variables
+.env
+*.env
+!.env.example
