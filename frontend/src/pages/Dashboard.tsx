@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { Link } from "react-router-dom"
 
 import {
   analyzeResume,
@@ -55,7 +56,7 @@ function Dashboard() {
                   resumeAnalyses[0]
               }
             } catch {
-              // No analysis yet for this resume.
+              // Resume may not have an analysis yet.
             }
           }),
         )
@@ -356,7 +357,7 @@ function Dashboard() {
                       </span>
                     </div>
 
-                    {/* Analysis */}
+                    {/* Scores */}
 
                     {analysis && (
                       <div className="mt-5 grid grid-cols-2 gap-3">
@@ -404,6 +405,15 @@ function Dashboard() {
                       </div>
 
                       <div className="flex items-center gap-2">
+                        {analysis && (
+                          <Link
+                            to={`/analysis/${analysis.id}`}
+                            className="rounded-lg border px-4 py-2 text-sm font-medium transition hover:bg-gray-50"
+                          >
+                            View Analysis
+                          </Link>
+                        )}
+
                         <button
                           onClick={() =>
                             handleAnalyze(resume.id)
