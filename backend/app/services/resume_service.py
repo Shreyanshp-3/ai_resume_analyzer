@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models.resume import Resume
 from app.repositories.resume_repository import ResumeRepository
+from app.services.parsing.resume_parser import extract_resume_text
 
 
 class ResumeService:
@@ -18,12 +19,33 @@ class ResumeService:
         file_path: str,
         file_type: str,
     ) -> Resume:
-        return self.resume_repository.create(
+        resume = self.resume_repository.create(
             user_id=user_id,
             filename=filename,
             file_path=file_path,
             file_type=file_type,
         )
+
+        try:
+            extracted_text = extract_resume_text(
+                file_path=file_path,
+                file_type=file_type,
+            )
+
+            resume = self.resume_repository.update_extracted_text(
+                resume=resume,
+                extracted_text=extracted_text,
+            )
+
+        except Exception:
+            self.resume_repository.delete(resume)
+
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Unable to extract text from the resume",
+            )
+
+        return resume
 
     def get_resume(
         self,

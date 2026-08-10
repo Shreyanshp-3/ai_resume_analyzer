@@ -58,3 +58,13 @@ class ResumeRepository:
     ) -> None:
         self.db.delete(resume)
         self.db.commit()
+
+    def update_extracted_text(
+        self,
+        resume: Resume,
+        extracted_text: str,
+    ) -> Resume:
+        resume.extracted_text = extracted_text
+        self.db.commit()
+        self.db.refresh(resume)
+        return resume
