@@ -8,7 +8,7 @@ The project is primarily a Python full-stack application built with FastAPI and 
 
 ## 🚀 Project Overview
 
-AI Resume Analyzer allows users to:
+AI Resume Analyzer allows users to -
 
 - Create an account and securely authenticate
 - Upload resumes
