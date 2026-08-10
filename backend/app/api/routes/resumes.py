@@ -1,4 +1,6 @@
+import io
 import uuid
+import zipfile
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -6,7 +8,10 @@ from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user, get_db
 from app.models.user import User
-from app.schemas.resume import ResumeResponse
+from app.schemas.resume import (
+    ResumeListResponse,
+    ResumeResponse,
+)
 from app.services.resume_service import ResumeService
 
 
@@ -24,6 +29,32 @@ ALLOWED_EXTENSIONS = {
 }
 
 MAX_FILE_SIZE = 5 * 1024 * 1024
+
+
+def validate_file_content(
+    content: bytes,
+    extension: str,
+) -> None:
+    if extension == ".pdf":
+        if not content.startswith(b"%PDF-"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid PDF file",
+            )
+
+    elif extension == ".docx":
+        try:
+            with zipfile.ZipFile(io.BytesIO(content)) as archive:
+                if "word/document.xml" not in archive.namelist():
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Invalid DOCX file",
+                    )
+        except zipfile.BadZipFile:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid DOCX file",
+            )
 
 
 @router.post(
@@ -52,6 +83,17 @@ async def upload_resume(
             detail="File size must be less than 5 MB",
         )
 
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is empty",
+        )
+
+    validate_file_content(
+        content=content,
+        extension=extension,
+    )
+
     UPLOAD_DIR.mkdir(
         parents=True,
         exist_ok=True,
@@ -59,9 +101,7 @@ async def upload_resume(
 
     resume_id = uuid.uuid4()
 
-    stored_filename = (
-        f"{resume_id}{extension}"
-    )
+    stored_filename = f"{resume_id}{extension}"
 
     file_path = UPLOAD_DIR / stored_filename
 
@@ -77,3 +117,58 @@ async def upload_resume(
     )
 
     return resume
+
+
+@router.get(
+    "",
+    response_model=ResumeListResponse,
+)
+def get_resumes(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    resume_service = ResumeService(db)
+
+    resumes = resume_service.get_user_resumes(
+        user_id=current_user.id,
+    )
+
+    return {
+        "resumes": resumes,
+    }
+
+
+@router.get(
+    "/{resume_id}",
+    response_model=ResumeResponse,
+)
+def get_resume(
+    resume_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    resume_service = ResumeService(db)
+
+    return resume_service.get_resume(
+        resume_id=resume_id,
+        user_id=current_user.id,
+    )
+
+
+@router.delete(
+    "/{resume_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_resume(
+    resume_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    resume_service = ResumeService(db)
+
+    resume_service.delete_resume(
+        resume_id=resume_id,
+        user_id=current_user.id,
+    )
+
+    return None

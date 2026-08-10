@@ -1,4 +1,5 @@
 import uuid
+from pathlib import Path
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -32,6 +33,11 @@ class ResumeService:
                 file_type=file_type,
             )
 
+            if not extracted_text.strip():
+                raise ValueError(
+                    "No readable text found in resume"
+                )
+
             resume = self.resume_repository.update_extracted_text(
                 resume=resume,
                 extracted_text=extracted_text,
@@ -40,9 +46,14 @@ class ResumeService:
         except Exception:
             self.resume_repository.delete(resume)
 
+            file = Path(file_path)
+
+            if file.exists():
+                file.unlink()
+
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Unable to extract text from the resume",
+                detail="Unable to extract readable text from the resume",
             )
 
         return resume
@@ -89,3 +100,8 @@ class ResumeService:
         )
 
         self.resume_repository.delete(resume)
+
+        file = Path(resume.file_path)
+
+        if file.exists():
+            file.unlink()
