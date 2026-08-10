@@ -3,10 +3,9 @@ import axios from "axios"
 import { getToken } from "./auth"
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
-  headers: {
-    "Content-Type": "application/json",
-  },
+  baseURL:
+    import.meta.env.VITE_API_URL ||
+    "http://localhost:8000",
 })
 
 api.interceptors.request.use(
@@ -19,7 +18,7 @@ api.interceptors.request.use(
 
     return config
   },
-  (error) => {
+  (error: unknown) => {
     return Promise.reject(error)
   },
 )
