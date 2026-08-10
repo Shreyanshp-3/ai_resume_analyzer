@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react"
 
+import {
+  analyzeResume,
+  getResumeAnalyses,
+} from "../api/analysis"
+import type { ResumeAnalysis } from "../api/analysis"
 import { deleteResume, getResumes } from "../api/resumes"
 import type { Resume } from "../api/resumes"
 import ResumeUpload from "../components/ResumeUpload"
@@ -13,7 +18,16 @@ function Dashboard() {
   } = useAuth()
 
   const [resumes, setResumes] = useState<Resume[]>([])
-  const [isLoadingResumes, setIsLoadingResumes] = useState(true)
+  const [isLoadingResumes, setIsLoadingResumes] =
+    useState(true)
+
+  const [analyzingResumeId, setAnalyzingResumeId] =
+    useState<string | null>(null)
+
+  const [analyses, setAnalyses] = useState<
+    Record<string, ResumeAnalysis>
+  >({})
+
   const [error, setError] = useState("")
 
   useEffect(() => {
@@ -24,6 +38,29 @@ function Dashboard() {
         const data = await getResumes()
 
         setResumes(data)
+
+        const analysisResults: Record<
+          string,
+          ResumeAnalysis
+        > = {}
+
+        await Promise.all(
+          data.map(async (resume) => {
+            try {
+              const resumeAnalyses =
+                await getResumeAnalyses(resume.id)
+
+              if (resumeAnalyses.length > 0) {
+                analysisResults[resume.id] =
+                  resumeAnalyses[0]
+              }
+            } catch {
+              // No analysis yet for this resume.
+            }
+          }),
+        )
+
+        setAnalyses(analysisResults)
       } catch {
         setError("Unable to load your resumes.")
       } finally {
@@ -38,7 +75,10 @@ function Dashboard() {
 
   const refreshResumes = async () => {
     try {
+      setError("")
+
       const data = await getResumes()
+
       setResumes(data)
     } catch {
       setError("Unable to refresh your resumes.")
@@ -56,8 +96,36 @@ function Dashboard() {
           (resume) => resume.id !== resumeId,
         ),
       )
+
+      setAnalyses((currentAnalyses) => {
+        const updated = { ...currentAnalyses }
+
+        delete updated[resumeId]
+
+        return updated
+      })
     } catch {
       setError("Unable to delete the resume.")
+    }
+  }
+
+  const handleAnalyze = async (resumeId: string) => {
+    try {
+      setError("")
+      setAnalyzingResumeId(resumeId)
+
+      const analysis = await analyzeResume(resumeId)
+
+      setAnalyses((currentAnalyses) => ({
+        ...currentAnalyses,
+        [resumeId]: analysis,
+      }))
+    } catch {
+      setError(
+        "Unable to analyze the resume. Please try again.",
+      )
+    } finally {
+      setAnalyzingResumeId(null)
     }
   }
 
@@ -113,7 +181,6 @@ function Dashboard() {
       {/* Main */}
 
       <main className="mx-auto max-w-7xl px-6 py-10">
-
         {/* Welcome */}
 
         <section>
@@ -127,7 +194,8 @@ function Dashboard() {
 
           <p className="mt-2 max-w-2xl text-gray-600">
             Upload your resume and get AI-powered insights
-            to improve your chances of landing your next role.
+            to improve your chances of landing your next
+            role.
           </p>
         </section>
 
@@ -175,7 +243,8 @@ function Dashboard() {
               </h3>
 
               <p className="mt-1 text-sm text-gray-500">
-                Upload your latest resume to start the analysis.
+                Upload your latest resume to start the
+                analysis.
               </p>
             </div>
 
@@ -241,60 +310,128 @@ function Dashboard() {
             </div>
           ) : (
             <div className="mt-5 grid gap-4 md:grid-cols-2">
-              {resumes.map((resume) => (
-                <div
-                  key={resume.id}
-                  className="group rounded-2xl border bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex min-w-0 gap-4">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-lg">
-                        📄
-                      </div>
+              {resumes.map((resume) => {
+                const analysis = analyses[resume.id]
 
-                      <div className="min-w-0">
-                        <h4 className="truncate font-semibold">
-                          {resume.filename}
-                        </h4>
+                const isAnalyzing =
+                  analyzingResumeId === resume.id
 
-                        <div className="mt-2 flex items-center gap-2">
-                          <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-medium uppercase text-gray-600">
-                            {resume.file_type.replace(
-                              ".",
-                              "",
-                            )}
-                          </span>
+                return (
+                  <div
+                    key={resume.id}
+                    className="rounded-2xl border bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    {/* Resume Header */}
 
-                          <span className="text-xs text-gray-400">
-                            {new Date(
-                              resume.created_at,
-                            ).toLocaleDateString()}
-                          </span>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex min-w-0 gap-4">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-lg">
+                          📄
+                        </div>
+
+                        <div className="min-w-0">
+                          <h4 className="truncate font-semibold">
+                            {resume.filename}
+                          </h4>
+
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-medium uppercase text-gray-600">
+                              {resume.file_type.replace(
+                                ".",
+                                "",
+                              )}
+                            </span>
+
+                            <span className="text-xs text-gray-400">
+                              {new Date(
+                                resume.created_at,
+                              ).toLocaleDateString()}
+                            </span>
+                          </div>
                         </div>
                       </div>
+
+                      <span className="shrink-0 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-600">
+                        Uploaded
+                      </span>
                     </div>
 
-                    <span className="shrink-0 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-600">
-                      Uploaded
-                    </span>
-                  </div>
+                    {/* Analysis */}
 
-                  <div className="mt-5 flex items-center justify-between border-t pt-4">
-                    <span className="text-xs text-gray-400">
-                      Ready for analysis
-                    </span>
+                    {analysis && (
+                      <div className="mt-5 grid grid-cols-2 gap-3">
+                        <div className="rounded-xl bg-gray-50 p-4">
+                          <p className="text-xs text-gray-500">
+                            Overall Score
+                          </p>
 
-                    <button
-                      onClick={() =>
-                        handleDelete(resume.id)
-                      }
-                      className="rounded-lg px-3 py-2 text-sm font-medium text-red-500 transition hover:bg-red-50"
-                    >
-                      Delete
-                    </button>
+                          <p className="mt-1 text-2xl font-bold">
+                            {analysis.overall_score ?? "—"}
+                            <span className="text-sm font-medium text-gray-400">
+                              /100
+                            </span>
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-gray-50 p-4">
+                          <p className="text-xs text-gray-500">
+                            ATS Score
+                          </p>
+
+                          <p className="mt-1 text-2xl font-bold">
+                            {analysis.ats_score ?? "—"}
+                            <span className="text-sm font-medium text-gray-400">
+                              /100
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+
+                    <div className="mt-5 flex items-center justify-between border-t pt-4">
+                      <div>
+                        {analysis ? (
+                          <span className="text-xs font-medium text-green-600">
+                            Analysis complete
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">
+                            Ready for analysis
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() =>
+                            handleAnalyze(resume.id)
+                          }
+                          disabled={isAnalyzing}
+                          className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isAnalyzing
+                            ? "Analyzing..."
+                            : analysis
+                              ? "Re-analyze"
+                              : "Analyze Resume"}
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            handleDelete(resume.id)
+                          }
+                          disabled={isAnalyzing}
+                          className="rounded-lg px-3 py-2 text-sm font-medium text-red-500 transition hover:bg-red-50 disabled:opacity-50"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </section>

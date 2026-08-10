@@ -67,3 +67,9 @@ class Resume(Base):
         "User",
         back_populates="resumes",
     )
+
+    analyses = relationship(
+        "ResumeAnalysis",
+        back_populates="resume",
+        cascade="all, delete-orphan",
+    )
