@@ -1,10 +1,45 @@
 from pathlib import Path
 
+import fitz
 from docx import Document
 from pypdf import PdfReader
 
 
-def extract_pdf_text(file_path: str) -> str:
+def clean_extracted_text(text: str) -> str:
+    lines = []
+
+    for line in text.splitlines():
+        cleaned = " ".join(line.split())
+
+        if cleaned:
+            lines.append(cleaned)
+
+    return "\n".join(lines).strip()
+
+
+def extract_pdf_text_pymupdf(
+    file_path: str,
+) -> str:
+    pages = []
+
+    with fitz.open(file_path) as document:
+        for page in document:
+            text = page.get_text(
+                "text",
+                sort=True,
+            )
+
+            if text:
+                pages.append(text)
+
+    return clean_extracted_text(
+        "\n".join(pages)
+    )
+
+
+def extract_pdf_text_pypdf(
+    file_path: str,
+) -> str:
     reader = PdfReader(file_path)
 
     pages = []
@@ -15,10 +50,29 @@ def extract_pdf_text(file_path: str) -> str:
         if text:
             pages.append(text)
 
-    return "\n".join(pages).strip()
+    return clean_extracted_text(
+        "\n".join(pages)
+    )
 
 
-def extract_docx_text(file_path: str) -> str:
+def extract_pdf_text(
+    file_path: str,
+) -> str:
+    text = extract_pdf_text_pymupdf(
+        file_path
+    )
+
+    if text:
+        return text
+
+    return extract_pdf_text_pypdf(
+        file_path
+    )
+
+
+def extract_docx_text(
+    file_path: str,
+) -> str:
     document = Document(file_path)
 
     paragraphs = []
@@ -29,7 +83,9 @@ def extract_docx_text(file_path: str) -> str:
         if text:
             paragraphs.append(text)
 
-    return "\n".join(paragraphs).strip()
+    return clean_extracted_text(
+        "\n".join(paragraphs)
+    )
 
 
 def extract_resume_text(
