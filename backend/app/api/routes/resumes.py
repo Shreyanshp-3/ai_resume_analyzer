@@ -14,7 +14,6 @@ from app.schemas.resume import (
 )
 from app.services.resume_service import ResumeService
 
-
 router = APIRouter(
     prefix="/resumes",
     tags=["Resumes"],
@@ -54,7 +53,7 @@ def validate_file_content(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid DOCX file",
-            )
+            ) from None
 
 
 @router.post(
@@ -109,14 +108,14 @@ async def upload_resume(
 
     resume_service = ResumeService(db)
 
-    resume = resume_service.create_resume(
+    return resume_service.create_resume(
         user_id=current_user.id,
         filename=file.filename or stored_filename,
         file_path=str(file_path),
         file_type=extension,
     )
 
-    return resume
+    #return resume
 
 
 @router.get(
@@ -171,4 +170,3 @@ def delete_resume(
         user_id=current_user.id,
     )
 
-    return None

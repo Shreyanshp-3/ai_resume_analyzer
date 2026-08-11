@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.resume_analysis import ResumeAnalysis
+from app.schemas.analysis import ResumeAnalysisCreate
 
 
 class AnalysisRepository:
@@ -13,27 +14,23 @@ class AnalysisRepository:
     def create(
         self,
         resume_id: uuid.UUID,
-        overall_score: int | None,
-        ats_score: int | None,
-        skills: list[str],
-        strengths: list[str],
-        weaknesses: list[str],
-        missing_skills: list[str],
-        recommendations: list[str],
-        summary: str | None,
-        model_name: str | None,
+        data: ResumeAnalysisCreate,
     ) -> ResumeAnalysis:
         analysis = ResumeAnalysis(
             resume_id=resume_id,
-            overall_score=overall_score,
-            ats_score=ats_score,
-            skills=skills,
-            strengths=strengths,
-            weaknesses=weaknesses,
-            missing_skills=missing_skills,
-            recommendations=recommendations,
-            summary=summary,
-            model_name=model_name,
+            target_role=data.target_role,
+            years_of_experience=data.years_of_experience,
+            overall_score=data.overall_score,
+            ats_score=data.ats_score,
+            dimension_scores=data.dimension_scores.model_dump(),
+            skills=data.skills,
+            strengths=data.strengths,
+            weaknesses=data.weaknesses,
+            missing_skills=data.missing_skills,
+            recommendations=data.recommendations,
+            top_3_fixes=data.top_3_fixes,
+            summary=data.summary,
+            model_name=data.model_name,
         )
 
         self.db.add(analysis)

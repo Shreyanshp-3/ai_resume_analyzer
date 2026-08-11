@@ -54,7 +54,7 @@ class ResumeService:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Unable to extract readable text from the resume",
-            )
+            ) from None
 
         return resume
 

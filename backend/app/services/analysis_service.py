@@ -20,6 +20,8 @@ class AnalysisService:
         self,
         resume_id: uuid.UUID,
         user_id: uuid.UUID,
+        target_role: str,
+        years_of_experience: float,
     ) -> ResumeAnalysis:
         resume = self.resume_repository.get_by_id(
             resume_id
@@ -45,7 +47,9 @@ class AnalysisService:
 
         try:
             analysis_data = self.ai_service.analyze_resume(
-                resume.extracted_text
+                resume_text=resume.extracted_text,
+                target_role=target_role,
+                years_of_experience=years_of_experience,
             )
         except Exception as exc:
             print(
@@ -62,15 +66,7 @@ class AnalysisService:
 
         return self.analysis_repository.create(
             resume_id=resume_id,
-            overall_score=analysis_data.overall_score,
-            ats_score=analysis_data.ats_score,
-            skills=analysis_data.skills,
-            strengths=analysis_data.strengths,
-            weaknesses=analysis_data.weaknesses,
-            missing_skills=analysis_data.missing_skills,
-            recommendations=analysis_data.recommendations,
-            summary=analysis_data.summary,
-            model_name=analysis_data.model_name,
+            data=analysis_data,
         )
 
     def create_analysis(
@@ -103,15 +99,7 @@ class AnalysisService:
 
         return self.analysis_repository.create(
             resume_id=resume_id,
-            overall_score=data.overall_score,
-            ats_score=data.ats_score,
-            skills=data.skills,
-            strengths=data.strengths,
-            weaknesses=data.weaknesses,
-            missing_skills=data.missing_skills,
-            recommendations=data.recommendations,
-            summary=data.summary,
-            model_name=data.model_name,
+            data=data,
         )
 
     def get_analysis(

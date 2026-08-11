@@ -1,6 +1,9 @@
+# ruff: noqa: B008
+
 import uuid
 
 from fastapi import APIRouter, Depends, status
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user, get_db
@@ -11,10 +14,21 @@ from app.schemas.analysis import (
 )
 from app.services.analysis_service import AnalysisService
 
-
 router = APIRouter(
     tags=["Resume Analysis"],
 )
+
+
+class AnalyzeResumeRequest(BaseModel):
+    target_role: str = Field(
+        min_length=1,
+        max_length=255,
+    )
+
+    years_of_experience: float = Field(
+        ge=0,
+        le=50,
+    )
 
 
 @router.post(
@@ -24,6 +38,7 @@ router = APIRouter(
 )
 def analyze_resume(
     resume_id: uuid.UUID,
+    data: AnalyzeResumeRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -32,6 +47,8 @@ def analyze_resume(
     return analysis_service.analyze_resume(
         resume_id=resume_id,
         user_id=current_user.id,
+        target_role=data.target_role,
+        years_of_experience=data.years_of_experience,
     )
 
 

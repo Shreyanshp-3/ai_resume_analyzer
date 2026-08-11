@@ -40,6 +40,6 @@ class AuthService:
                 detail="Invalid email or password",
             )
 
-        access_token = create_access_token(str(user.id))
+        return create_access_token(str(user.id))
 
-        return access_token
+       # return access_token

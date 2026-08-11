@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 
 import {
   analyzeResume,
@@ -18,6 +18,8 @@ function Dashboard() {
     logout,
   } = useAuth()
 
+  const navigate = useNavigate()
+
   const [resumes, setResumes] = useState<Resume[]>([])
   const [isLoadingResumes, setIsLoadingResumes] =
     useState(true)
@@ -30,6 +32,23 @@ function Dashboard() {
   >({})
 
   const [error, setError] = useState("")
+
+  const [selectedResumeId, setSelectedResumeId] =
+    useState<string | null>(null)
+
+  const [targetRole, setTargetRole] = useState("")
+  const [yearsOfExperience, setYearsOfExperience] =
+    useState("")
+
+  const selectedResume = selectedResumeId
+    ? resumes.find(
+        (resume) => resume.id === selectedResumeId,
+      )
+    : null
+
+  const selectedAnalysis = selectedResumeId
+    ? analyses[selectedResumeId]
+    : undefined
 
   useEffect(() => {
     const fetchResumes = async () => {
@@ -86,6 +105,34 @@ function Dashboard() {
     }
   }
 
+  const openAnalyzeModal = (resumeId: string) => {
+    setError("")
+
+    const existingAnalysis = analyses[resumeId]
+
+    if (existingAnalysis) {
+      setTargetRole(existingAnalysis.target_role)
+      setYearsOfExperience(
+        String(existingAnalysis.years_of_experience),
+      )
+    } else {
+      setTargetRole("")
+      setYearsOfExperience("")
+    }
+
+    setSelectedResumeId(resumeId)
+  }
+
+  const closeAnalyzeModal = () => {
+    if (analyzingResumeId) {
+      return
+    }
+
+    setSelectedResumeId(null)
+    setTargetRole("")
+    setYearsOfExperience("")
+  }
+
   const handleDelete = async (resumeId: string) => {
     try {
       setError("")
@@ -110,17 +157,53 @@ function Dashboard() {
     }
   }
 
-  const handleAnalyze = async (resumeId: string) => {
+  const handleAnalyze = async () => {
+    if (!selectedResumeId) {
+      return
+    }
+
+    const trimmedRole = targetRole.trim()
+    const parsedExperience = Number(yearsOfExperience)
+
+    if (!trimmedRole) {
+      setError("Please enter the target role.")
+      return
+    }
+
+    if (
+      yearsOfExperience.trim() === "" ||
+      !Number.isFinite(parsedExperience) ||
+      parsedExperience < 0 ||
+      parsedExperience > 50
+    ) {
+      setError(
+        "Please enter a valid number of years of experience.",
+      )
+      return
+    }
+
     try {
       setError("")
-      setAnalyzingResumeId(resumeId)
+      setAnalyzingResumeId(selectedResumeId)
 
-      const analysis = await analyzeResume(resumeId)
+      const analysis = await analyzeResume(
+        selectedResumeId,
+        {
+          target_role: trimmedRole,
+          years_of_experience: parsedExperience,
+        },
+      )
 
       setAnalyses((currentAnalyses) => ({
         ...currentAnalyses,
-        [resumeId]: analysis,
+        [selectedResumeId]: analysis,
       }))
+
+      setSelectedResumeId(null)
+      setTargetRole("")
+      setYearsOfExperience("")
+
+      navigate(`/analysis/${analysis.id}`)
     } catch {
       setError(
         "Unable to analyze the resume. Please try again.",
@@ -141,6 +224,8 @@ function Dashboard() {
   if (!user) {
     return null
   }
+
+  const isAnalyzing = Boolean(analyzingResumeId)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -314,7 +399,7 @@ function Dashboard() {
               {resumes.map((resume) => {
                 const analysis = analyses[resume.id]
 
-                const isAnalyzing =
+                const isResumeAnalyzing =
                   analyzingResumeId === resume.id
 
                 return (
@@ -389,9 +474,41 @@ function Dashboard() {
                       </div>
                     )}
 
+                    {/* Analysis Context */}
+
+                    {analysis && (
+                      <div className="mt-4 rounded-xl border bg-gray-50 p-4">
+                        <div className="flex flex-wrap gap-4 text-sm">
+                          <div>
+                            <p className="text-xs text-gray-500">
+                              Target Role
+                            </p>
+
+                            <p className="mt-1 font-medium">
+                              {analysis.target_role}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs text-gray-500">
+                              Experience
+                            </p>
+
+                            <p className="mt-1 font-medium">
+                              {analysis.years_of_experience}{" "}
+                              {analysis.years_of_experience ===
+                              1
+                                ? "year"
+                                : "years"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Actions */}
 
-                    <div className="mt-5 flex items-center justify-between border-t pt-4">
+                    <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
                       <div>
                         {analysis ? (
                           <span className="text-xs font-medium text-green-600">
@@ -404,7 +521,7 @@ function Dashboard() {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         {analysis && (
                           <Link
                             to={`/analysis/${analysis.id}`}
@@ -416,12 +533,12 @@ function Dashboard() {
 
                         <button
                           onClick={() =>
-                            handleAnalyze(resume.id)
+                            openAnalyzeModal(resume.id)
                           }
                           disabled={isAnalyzing}
                           className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          {isAnalyzing
+                          {isResumeAnalyzing
                             ? "Analyzing..."
                             : analysis
                               ? "Re-analyze"
@@ -446,6 +563,155 @@ function Dashboard() {
           )}
         </section>
       </main>
+
+      {/* Analyze Modal */}
+
+      {selectedResumeId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="analyze-resume-title"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                  Resume Analysis
+                </p>
+
+                <h3
+                  id="analyze-resume-title"
+                  className="mt-1 text-xl font-semibold"
+                >
+                  {selectedAnalysis
+                    ? "Re-analyze Resume"
+                    : "Analyze Resume"}
+                </h3>
+              </div>
+
+              <button
+                onClick={closeAnalyzeModal}
+                disabled={isAnalyzing}
+                className="rounded-lg px-2 py-1 text-xl text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            {selectedResume && (
+              <div className="mt-5 rounded-xl bg-gray-50 p-4">
+                <p className="truncate text-sm font-medium">
+                  {selectedResume.filename}
+                </p>
+
+                {selectedAnalysis && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Reusing the same analysis context from
+                    the previous analysis.
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="mt-6 space-y-5">
+              <div>
+                <label
+                  htmlFor="target-role"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Target Role
+                </label>
+
+                <input
+                  id="target-role"
+                  type="text"
+                  value={targetRole}
+                  onChange={(event) =>
+                    setTargetRole(event.target.value)
+                  }
+                  disabled={Boolean(selectedAnalysis)}
+                  placeholder="e.g. Full Stack Developer"
+                  className="mt-2 w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-black disabled:cursor-not-allowed disabled:bg-gray-100"
+                />
+
+                {!selectedAnalysis && (
+                  <p className="mt-1.5 text-xs text-gray-500">
+                    Enter the role you're targeting.
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label
+                  htmlFor="years-of-experience"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Years of Experience
+                </label>
+
+                <input
+                  id="years-of-experience"
+                  type="number"
+                  min="0"
+                  max="50"
+                  step="0.5"
+                  value={yearsOfExperience}
+                  onChange={(event) =>
+                    setYearsOfExperience(event.target.value)
+                  }
+                  disabled={Boolean(selectedAnalysis)}
+                  placeholder="e.g. 2"
+                  className="mt-2 w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-black disabled:cursor-not-allowed disabled:bg-gray-100"
+                />
+
+                {!selectedAnalysis && (
+                  <p className="mt-1.5 text-xs text-gray-500">
+                    Use 0 for an entry-level candidate.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {selectedAnalysis && (
+              <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <p className="text-xs leading-5 text-gray-500">
+                  Want to analyze this resume for a
+                  different role or experience level? Upload
+                  the updated resume as a new version first.
+                </p>
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={closeAnalyzeModal}
+                disabled={isAnalyzing}
+                className="rounded-xl border px-4 py-2.5 text-sm font-medium transition hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleAnalyze}
+                disabled={
+                  isAnalyzing ||
+                  !targetRole.trim() ||
+                  yearsOfExperience.trim() === ""
+                }
+                className="rounded-xl bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isAnalyzing
+                  ? "Analyzing..."
+                  : selectedAnalysis
+                    ? "Re-analyze"
+                    : "Analyze Resume"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
