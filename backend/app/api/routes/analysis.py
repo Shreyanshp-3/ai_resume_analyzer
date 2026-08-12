@@ -42,14 +42,36 @@ def analyze_resume(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    print(
+        "ANALYZE ROUTE HIT:",
+        resume_id,
+        "user:",
+        current_user.id,
+        "role:",
+        data.target_role,
+        flush=True,
+    )
+
     analysis_service = AnalysisService(db)
 
-    return analysis_service.analyze_resume(
+    print(
+        "ANALYSIS SERVICE CREATED",
+        flush=True,
+    )
+
+    result = analysis_service.analyze_resume(
         resume_id=resume_id,
         user_id=current_user.id,
         target_role=data.target_role,
         years_of_experience=data.years_of_experience,
     )
+
+    print(
+        "ANALYSIS COMPLETED",
+        flush=True,
+    )
+
+    return result
 
 
 @router.get(
