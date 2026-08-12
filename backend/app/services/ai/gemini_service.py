@@ -24,6 +24,12 @@ class GeminiAIService(AIService):
 
         self.model_name = settings.GEMINI_MODEL
 
+        print(
+            "GEMINI MODEL:",
+            repr(self.model_name),
+            flush=True,
+        )
+
         self.client = genai.Client(
             api_key=settings.GEMINI_API_KEY,
         )
