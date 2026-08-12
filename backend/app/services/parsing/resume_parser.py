@@ -1,4 +1,4 @@
-from pathlib import Path
+import io
 
 import fitz
 from docx import Document
@@ -18,11 +18,14 @@ def clean_extracted_text(text: str) -> str:
 
 
 def extract_pdf_text_pymupdf(
-    file_path: str,
+    content: bytes,
 ) -> str:
     pages = []
 
-    with fitz.open(file_path) as document:
+    with fitz.open(
+        stream=content,
+        filetype="pdf",
+    ) as document:
         for page in document:
             text = page.get_text(
                 "text",
@@ -38,9 +41,11 @@ def extract_pdf_text_pymupdf(
 
 
 def extract_pdf_text_pypdf(
-    file_path: str,
+    content: bytes,
 ) -> str:
-    reader = PdfReader(file_path)
+    reader = PdfReader(
+        io.BytesIO(content)
+    )
 
     pages = []
 
@@ -56,24 +61,26 @@ def extract_pdf_text_pypdf(
 
 
 def extract_pdf_text(
-    file_path: str,
+    content: bytes,
 ) -> str:
     text = extract_pdf_text_pymupdf(
-        file_path
+        content
     )
 
     if text:
         return text
 
     return extract_pdf_text_pypdf(
-        file_path
+        content
     )
 
 
 def extract_docx_text(
-    file_path: str,
+    content: bytes,
 ) -> str:
-    document = Document(file_path)
+    document = Document(
+        io.BytesIO(content)
+    )
 
     paragraphs = []
 
@@ -89,16 +96,14 @@ def extract_docx_text(
 
 
 def extract_resume_text(
-    file_path: str,
+    content: bytes,
     file_type: str,
 ) -> str:
-    extension = Path(file_path).suffix.lower()
+    if file_type == ".pdf":
+        return extract_pdf_text(content)
 
-    if extension == ".pdf":
-        return extract_pdf_text(file_path)
-
-    if extension == ".docx":
-        return extract_docx_text(file_path)
+    if file_type == ".docx":
+        return extract_docx_text(content)
 
     raise ValueError(
         f"Unsupported resume file type: {file_type}"

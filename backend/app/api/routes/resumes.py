@@ -3,7 +3,14 @@ import uuid
 import zipfile
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    UploadFile,
+    status,
+)
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user, get_db
@@ -19,8 +26,6 @@ router = APIRouter(
     tags=["Resumes"],
 )
 
-
-UPLOAD_DIR = Path("uploads/resumes")
 
 ALLOWED_EXTENSIONS = {
     ".pdf",
@@ -43,12 +48,15 @@ def validate_file_content(
 
     elif extension == ".docx":
         try:
-            with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            with zipfile.ZipFile(
+                io.BytesIO(content)
+            ) as archive:
                 if "word/document.xml" not in archive.namelist():
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail="Invalid DOCX file",
                     )
+
         except zipfile.BadZipFile:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -66,7 +74,9 @@ async def upload_resume(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    extension = Path(file.filename or "").suffix.lower()
+    filename = file.filename or ""
+
+    extension = Path(filename).suffix.lower()
 
     if extension not in ALLOWED_EXTENSIONS:
         raise HTTPException(
@@ -93,29 +103,14 @@ async def upload_resume(
         extension=extension,
     )
 
-    UPLOAD_DIR.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    resume_id = uuid.uuid4()
-
-    stored_filename = f"{resume_id}{extension}"
-
-    file_path = UPLOAD_DIR / stored_filename
-
-    file_path.write_bytes(content)
-
     resume_service = ResumeService(db)
 
     return resume_service.create_resume(
         user_id=current_user.id,
-        filename=file.filename or stored_filename,
-        file_path=str(file_path),
+        filename=Path(filename).name,
+        content=content,
         file_type=extension,
     )
-
-    #return resume
 
 
 @router.get(
@@ -169,4 +164,3 @@ def delete_resume(
         resume_id=resume_id,
         user_id=current_user.id,
     )
-

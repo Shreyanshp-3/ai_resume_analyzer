@@ -1,5 +1,4 @@
 import uuid
-from pathlib import Path
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -17,19 +16,18 @@ class ResumeService:
         self,
         user_id: uuid.UUID,
         filename: str,
-        file_path: str,
+        content: bytes,
         file_type: str,
     ) -> Resume:
         resume = self.resume_repository.create(
             user_id=user_id,
             filename=filename,
-            file_path=file_path,
             file_type=file_type,
         )
 
         try:
             extracted_text = extract_resume_text(
-                file_path=file_path,
+                content=content,
                 file_type=file_type,
             )
 
@@ -45,11 +43,6 @@ class ResumeService:
 
         except Exception:
             self.resume_repository.delete(resume)
-
-            file = Path(file_path)
-
-            if file.exists():
-                file.unlink()
 
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -100,8 +93,3 @@ class ResumeService:
         )
 
         self.resume_repository.delete(resume)
-
-        file = Path(resume.file_path)
-
-        if file.exists():
-            file.unlink()

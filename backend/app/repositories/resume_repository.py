@@ -14,13 +14,11 @@ class ResumeRepository:
         self,
         user_id: uuid.UUID,
         filename: str,
-        file_path: str,
         file_type: str,
     ) -> Resume:
         resume = Resume(
             user_id=user_id,
             filename=filename,
-            file_path=file_path,
             file_type=file_type,
         )
 
@@ -67,4 +65,5 @@ class ResumeRepository:
         resume.extracted_text = extracted_text
         self.db.commit()
         self.db.refresh(resume)
+
         return resume
