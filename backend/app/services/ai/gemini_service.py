@@ -216,7 +216,6 @@ schema.
                 model=self.model_name,
                 contents=prompt,
                 config=types.GenerateContentConfig(
-                    temperature=0,
                     response_mime_type="application/json",
                     response_schema=ResumeAnalysisCreate,
                 ),
