@@ -225,6 +225,13 @@ schema.
         except ClientError as exc:
             error_message = str(exc)
 
+            print(
+                "GEMINI CLIENT ERROR:",
+                type(exc).__name__,
+                error_message,
+                flush=True,
+            )
+
             if (
                 "429" in error_message
                 or "RESOURCE_EXHAUSTED" in error_message
@@ -240,6 +247,13 @@ schema.
             ) from exc
 
         except ServerError as exc:
+            print(
+                "GEMINI SERVER ERROR:",
+                type(exc).__name__,
+                str(exc),
+                flush=True,
+            )
+
             raise GeminiUnavailableError(
                 "Gemini API is temporarily unavailable"
             ) from exc
