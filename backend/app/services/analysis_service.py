@@ -7,7 +7,11 @@ from app.models.resume_analysis import ResumeAnalysis
 from app.repositories.analysis_repository import AnalysisRepository
 from app.repositories.resume_repository import ResumeRepository
 from app.schemas.analysis import ResumeAnalysisCreate
-from app.services.ai.gemini_service import GeminiAIService
+from app.services.ai.gemini_service import (
+    GeminiAIService,
+    GeminiQuotaError,
+    GeminiUnavailableError,
+)
 
 
 class AnalysisService:
@@ -51,6 +55,26 @@ class AnalysisService:
                 target_role=target_role,
                 years_of_experience=years_of_experience,
             )
+
+        except GeminiQuotaError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=(
+                    "AI analysis is temporarily unavailable "
+                    "because the AI service quota has been "
+                    "reached. Please try again later."
+                ),
+            ) from exc
+
+        except GeminiUnavailableError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=(
+                    "The AI analysis service is temporarily "
+                    "unavailable. Please try again later."
+                ),
+            ) from exc
+
         except Exception as exc:
             print(
                 f"AI ANALYSIS ERROR: "
@@ -59,7 +83,7 @@ class AnalysisService:
 
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="AI analysis service is currently unavailable",
+                detail="Unable to complete AI analysis",
             ) from exc
 
         analysis_data.model_name = self.ai_service.model_name

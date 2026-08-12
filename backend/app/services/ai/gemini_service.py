@@ -1,9 +1,18 @@
 from google import genai
 from google.genai import types
+from google.genai.errors import ClientError, ServerError
 
 from app.core.config import settings
 from app.schemas.analysis import ResumeAnalysisCreate
 from app.services.ai.base import AIService
+
+
+class GeminiQuotaError(Exception):
+    """Gemini API quota or rate limit was exceeded."""
+
+
+class GeminiUnavailableError(Exception):
+    """Gemini API is temporarily unavailable."""
 
 
 class GeminiAIService(AIService):
@@ -202,15 +211,38 @@ Return only structured JSON matching the provided response
 schema.
 """
 
-        response = self.client.models.generate_content(
-            model=self.model_name,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0,
-                response_mime_type="application/json",
-                response_schema=ResumeAnalysisCreate,
-            ),
-        )
+        try:
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0,
+                    response_mime_type="application/json",
+                    response_schema=ResumeAnalysisCreate,
+                ),
+            )
+
+        except ClientError as exc:
+            error_message = str(exc)
+
+            if (
+                "429" in error_message
+                or "RESOURCE_EXHAUSTED" in error_message
+                or "quota" in error_message.lower()
+                or "rate limit" in error_message.lower()
+            ):
+                raise GeminiQuotaError(
+                    "Gemini API quota or rate limit exceeded"
+                ) from exc
+
+            raise GeminiUnavailableError(
+                "Gemini API request failed"
+            ) from exc
+
+        except ServerError as exc:
+            raise GeminiUnavailableError(
+                "Gemini API is temporarily unavailable"
+            ) from exc
 
         if not response.parsed:
             raise RuntimeError(
